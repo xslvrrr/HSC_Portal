@@ -1,0 +1,16 @@
+{
+  "name": "NSW HSC Past Papers Hub",
+  "short_name": "HSC Prep",
+  "description": "Access and practice NESA NSW HSC past papers and school trial exams.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#355b4f",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+name: Automated Scraper
+
+permissions:
+  contents: write
+  issues: write
+
+on:
+  schedule:
+    - cron: '0 4 * * *' # Daily at 04:00 UTC
+  workflow_dispatch: {}
+  push:
+    branches:
+      - main
+
+jobs:
+  run-scraper:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Run scraper and optimize
+        run: |
+          python -u scraper.py
+          python -u optimize_data.py
+
+      - name: Commit updated database if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/papers.json
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: update papers database (automated)"
+            # Determine branch name from GITHUB_REF (fallback to main)
+            BRANCH=${GITHUB_REF#refs/heads/}
+            if [ -z "$BRANCH" ]; then
+              BRANCH=main
+            fi
+
+            # Fetch latest remote and rebase to avoid non-fast-forward errors
+            git fetch origin "$BRANCH"
+            git pull --rebase origin "$BRANCH" || true
+
+            # Try push; if it fails (race), retry with --force-with-lease
+            if git push origin "$BRANCH"; then
+              echo "Pushed updates to origin/$BRANCH"
+            else
+              echo "Push failed, retrying with --force-with-lease"
+              git push --force-with-lease origin "$BRANCH"
+            fi
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Deploy to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ -z "${VERCEL_TOKEN}" ]; then
+            echo "VERCEL_TOKEN not set; skipping Vercel deploy."
+          else
+            echo "Deploying to Vercel..."
+            npx vercel --prod --token "$VERCEL_TOKEN" --confirm
+          fi
+
+      - name: Create GitHub issue on failure
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            const title = `Automated scraper FAILED — run #${process.env.GITHUB_RUN_NUMBER}`;
+            const body = `The automated scraper workflow failed.\n\nRun: ${runUrl}\nCommit: ${process.env.GITHUB_SHA}\n\nCheck Actions logs for details.`;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body
+            });

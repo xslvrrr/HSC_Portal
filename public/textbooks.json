@@ -1,0 +1,11 @@
+{
+  "textbooks": [
+    {
+      "id": "1",
+      "title": "HSC Textbooks Library",
+      "subject": "All Subjects",
+      "description": "A comprehensive collection of HSC textbooks stored in Google Drive.",
+      "url": "https://drive.google.com/drive/folders/1vAADiVrKUIR_iApOoBdghSvKU6JhIwKT?usp=drive_link"
+    }
+  ]
+}

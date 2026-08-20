@@ -1,0 +1,43 @@
+[33mac77b93[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m fixed sidebar
+[33me17927f[m chore: update papers database (automated)
+[33maf33f3f[m Added shareable tests
+[33m3e1de87[m chore: update papers database (automated)
+[33m3934660[m Added formula sheets with Split Screen
+[33mf626f3c[m chore: update papers database (automated)
+[33mdf76755[m chore: update papers database (automated)
+[33m97e8929[m chore: update papers database (automated)
+[33me499a67[m chore: update papers database (automated)
+[33m4c0374f[m Update README.md
+[33m696145c[m chore: update papers database (automated)
+[33m070718e[m Add files via upload
+[33m44bd149[m chore: update papers database (automated)
+[33mfc914d7[m Add files via upload
+[33mb9df06b[m chore: update papers database (automated)
+[33mf959ef3[m Merge pull request #2 from spidey1102/vercel/install-vercel-web-analytics-uldtod
+[33mbb05f30[m Install Vercel Web Analytics
+[33m0cddd44[m chore: update papers database (automated)
+[33m96a0475[m ui: collapsible tools panel and compact timer; mobile tweaks
+[33ma827469[m chore: update papers database (automated)
+[33m15b5072[m ui: mobile responsive layout and sidebar toggle
+[33m46b156c[m chore: update papers database (automated)
+[33me453cc7[m chore: update papers database (automated)
+[33mef71774[m ci: avoid secrets in if; skip Vercel deploy when token missing
+[33m87ec042[m ci: make Vercel deploy conditional when token missing
+[33mfaabca4[m chore: update papers database (automated)
+[33m721f481[m ci: create GitHub issue on workflow failure; remove SMTP steps
+[33md1e80d3[m chore: update papers database (automated)
+[33me1d3349[m ci: deploy to Vercel after scraper runs
+[33m3d73920[m chore: update papers database (automated)
+[33mef50d8d[m chore: remove nesappscraper converter script
+[33m26758d6[m revert(ci): remove nesappscraper converter and restore workflow to original scraper
+[33m9967ca8[m chore: update papers database (automated)
+[33m35eb351[m revert(data): restore public/papers.json to pre-nesa state
+[33m647d38b[m chore: update papers database (automated)
+[33mef7262b[m chore(ci): fetch NESA data.json and convert to raw format before optimize
+[33m588f1aa[m[33m ([m[1;33mtag: [m[1;33mv0.21[m[33m, [m[1;33mtag: [m[1;33m0.211[m[33m)[m chore: update papers database (automated)
+[33ma5445b6[m fix(ci): grant workflow contents write permission for commits
+[33m62958bf[m chore: hide HSC papers in UI; add scraper automation workflow
+[33m7529ca9[m[33m ([m[1;33mtag: [m[1;33mv0.121[m[33m)[m feat: add Discord-style Textbooks server and library view
+[33ma4dc003[m[33m ([m[1;33mtag: [m[1;33mv0.2[m[33m)[m Redesign UI to match Discord layout and aesthetics
+[33m2287c14[m[33m ([m[1;33mtag: [m[1;33mv0.12[m[33m)[m Fix duplicate subject logic in scraper and update paper counts
+[33m9228485[m[33m ([m[1;33mtag: [m[1;33mV0.1[m[33m)[m feat: initial hsc past papers portal release

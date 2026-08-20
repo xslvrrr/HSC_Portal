@@ -1,0 +1,16 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Private student data, including account settings, paper history, reviews, and mistakes.
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Reusable paper structure only. Browser clients can read cached question and mark
+    // information, while the Firebase Admin SDK is the sole writer for this collection.
+    match /paperMetadata/{paperId} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}

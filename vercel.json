@@ -1,0 +1,19 @@
+{
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "functions": {
+    "api/paper-metadata.js": {
+      "maxDuration": 60,
+      "includeFiles": "node_modules/pdfjs-dist/standard_fonts/**"
+    },
+    "api/agent/paper-context.js": {
+      "includeFiles": "node_modules/pdfjs-dist/standard_fonts/**"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

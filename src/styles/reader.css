@@ -1,0 +1,560 @@
+/*
+ * The practice room.
+ *
+ * The paper is rendered by the portal, so the chrome around it is the portal's:
+ * ruled, squared, set in the same type. The two floating bars — the exam timer
+ * and the annotation toolbar — are reworked from the Millennium reader, keeping
+ * its shapes and its behaviour but none of its rounded glass.
+ *
+ * Loaded after classical.css; every token below comes from there.
+ */
+
+.reader {
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; flex-direction: column;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+/* ── Masthead ─────────────────────────────────────────────────────────── */
+
+.reader-head {
+  flex: none;
+  display: flex; align-items: center; gap: 16px;
+  padding: 12px var(--gutter);
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-text);
+}
+.reader-title { min-width: 0; flex: 1; }
+.reader-name {
+  font-family: var(--font-heading); font-weight: var(--font-heading-weight);
+  font-size: 20px; line-height: 1.15;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.reader-actions {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.reader-actions .btn { font-size: 13px; }
+
+.reader-notice {
+  flex: none;
+  padding: 7px var(--gutter);
+  font-size: 12.5px;
+  background: var(--color-accent-100);
+  color: var(--color-accent-800);
+  border-bottom: 1px solid var(--color-divider);
+}
+
+/* ── Panes ────────────────────────────────────────────────────────────── */
+
+.reader-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.reader-panes { flex: 1; min-height: 0; display: flex; }
+.reader-pane { position: relative; flex: 1; min-width: 0; min-height: 0; }
+.reader-panes.is-split .reader-pane-sheet { border-left: 1px solid var(--color-text); }
+.reader-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: var(--color-bg); }
+
+.reader-tabs { flex: none; display: none; justify-content: center; padding: 8px; border-top: 1px solid var(--color-divider); }
+
+/* ── The page itself ──────────────────────────────────────────────────── */
+
+.pdf-scroll {
+  position: absolute; inset: 0;
+  overflow: auto;
+  background: var(--color-surface);
+  /* Room at the bottom for the floating bars to sit over. */
+  padding: 24px 0 132px;
+  /*
+   * The live zoom. Written straight onto this element by the zoom hook on every
+   * wheel notch, so the whole page stack resizes in one style recalculation
+   * without a single component re-rendering. Nothing in React holds it.
+   */
+  --pdf-scale: 1;
+}
+.pdf-pages { display: flex; flex-direction: column; align-items: center; gap: 22px; }
+
+.pdf-page { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+/* `--page-w`, `--page-h` and `--raster-scale` are set per page from React. */
+.pdf-page-sheet {
+  position: relative;
+  width: calc(var(--page-w, 0px) * var(--pdf-scale));
+  height: calc(var(--page-h, 0px) * var(--pdf-scale));
+  background: #fff;
+  border: 1px solid var(--color-divider);
+  box-shadow: var(--shadow-md);
+}
+.pdf-page-sheet > canvas { display: block; width: 100%; height: 100%; }
+.pdf-page-number {
+  font-size: 10.5px; letter-spacing: 0.12em;
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+
+.pdf-layer { position: absolute; inset: 0; width: 100%; height: 100%; }
+.pdf-layer-under { z-index: 1; pointer-events: none; }
+.pdf-layer-over { z-index: 4; }
+
+/* The cursor states the tool, so a reader knows what a drag will do. */
+.pdf-layer-over.tool-select { cursor: default; }
+.pdf-layer-over.tool-hand { cursor: grab; }
+.pdf-layer-over.tool-draw,
+.pdf-layer-over.tool-line,
+.pdf-layer-over.tool-arrow,
+.pdf-layer-over.tool-highlight { cursor: crosshair; }
+.pdf-layer-over.tool-text { cursor: text; }
+.pdf-layer-over.tool-eraser { cursor: cell; }
+/* Only the drawing tools should swallow pointer events; select must still let
+   a reader scroll the page with the wheel and drag-select nothing by accident. */
+.pdf-layer-over.tool-select,
+.pdf-layer-over.tool-hand { pointer-events: none; }
+.pdf-layer-over.tool-select > * { pointer-events: auto; }
+
+/*
+ * The selectable text layer.
+ *
+ * pdf.js positions every span itself; these are the rules from its own
+ * stylesheet that the layer needs, extracted rather than importing the whole
+ * viewer sheet, which also carries form and XFA styling this reader never uses.
+ */
+.textLayer {
+  position: absolute; top: 0; left: 0; z-index: 2;
+  text-align: initial;
+  overflow: clip;
+  line-height: 1;
+  /* pdf.js sizes the layer itself from `--scale-factor`, which follows the
+     raster. Between rasters the whole layer is stretched to the live scale, so
+     the words stay over the words rather than re-laying out per wheel notch. */
+  transform: scale(calc(var(--pdf-scale) / var(--raster-scale, 1)));
+  transform-origin: 0 0;
+  forced-color-adjust: none;
+  text-size-adjust: none;
+  caret-color: CanvasText;
+}
+.textLayer :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+.textLayer > :not(.markedContent),
+.textLayer .markedContent span:not(.markedContent) { z-index: 1; }
+.textLayer span.markedContent { top: 0; height: 0; }
+/*
+ * The end-of-content marker.
+ *
+ * Parked below the spans while nothing is being selected, and stretched over the
+ * whole page the moment a drag starts, so pressing down on blank space between
+ * two lines has a real unselectable node to anchor on. Without it the browser
+ * anchors on the first text node in the DOM and a click near the foot of a page
+ * silently selects the whole paper above it.
+ */
+.textLayer .endOfContent {
+  display: block; position: absolute; inset: 100% 0 0;
+  z-index: 0; cursor: default; user-select: none;
+}
+.textLayer.selecting .endOfContent { top: 0; }
+/* Selection is off while a drawing tool is armed, so a drag meant to highlight
+   never selects the words underneath instead. */
+.textLayer[data-selectable='false'] { user-select: none; pointer-events: none; }
+.textLayer[data-selectable='true'] { user-select: text; }
+.textLayer ::selection { background: color-mix(in srgb, var(--color-accent) 42%, transparent); }
+
+.pdf-note-layer { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
+.pdf-note {
+  position: absolute;
+  transform: translateY(-0.9em);
+  font-family: var(--font-body); line-height: 1.2;
+  white-space: pre-wrap; max-width: 40%;
+  cursor: pointer;
+}
+.pdf-note.on { outline: 1px dashed currentColor; outline-offset: 3px; }
+
+.pdf-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 50vh; padding: 40px;
+}
+
+/* ── Floating bars ────────────────────────────────────────────────────── */
+
+/*
+ * The bars are a full-width strip that centres its own contents, rather than a
+ * shrink-to-fit box pinned at `left: 50%`.
+ *
+ * Pinned that way the toolbar's available width was only the distance from the
+ * centre of the pane to its right edge — half the screen — so the bar wrapped
+ * onto two rows on any window narrower than about 1700px, whatever `max-width`
+ * said. Laid out across the pane it has the whole width to sit in and stays one
+ * row down to roughly 900px.
+ *
+ * The strip itself is transparent to the pointer so the page underneath still
+ * scrolls where no bar is drawn; the bars themselves take events back.
+ */
+.reader-bars {
+  position: absolute; left: 0; right: 0; bottom: 18px; z-index: 6;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 0 10px;
+  pointer-events: none;
+  /* Enter and exit both run; the exit is what the toolbar was missing. */
+  transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+              right 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reader-bars > * { pointer-events: auto; }
+.reader-bars.is-entering { opacity: 0; transform: translateY(16px); }
+.reader-bars.is-entered { opacity: 1; transform: none; }
+.reader-bars.is-exiting { opacity: 0; transform: translateY(16px); }
+/* The margin takes the right of the screen; the bars move off it rather than
+   sitting half-hidden underneath. */
+.reader-bars.is-shifted { right: min(440px, 44vw); }
+
+.mark-editor {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 4px 4px 10px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-text);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+.mark-editor .input { min-height: 30px; min-width: 220px; border: 0; }
+.mark-editor .input:focus-visible { outline: none; }
+
+.reader-reveal {
+  position: absolute; right: 18px; bottom: 18px; z-index: 6;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  font-family: var(--font-heading); font-weight: var(--font-heading-weight); font-size: 13px;
+  color: var(--color-text); cursor: pointer;
+  background: var(--color-bg);
+  border: 1px solid var(--color-text);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+.reader-reveal:hover { background: color-mix(in srgb, var(--color-text) 7%, transparent); }
+.reader-reveal { transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.22, 1, 0.36, 1); }
+.reader-reveal.is-entering { opacity: 0; transform: scale(0.92); }
+.reader-reveal.is-entered { opacity: 1; transform: none; }
+.reader-reveal.is-exiting { opacity: 0; transform: scale(0.92); }
+
+/* What the reader has selected on the page, with the one action it affords. */
+.selection-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  max-width: min(760px, 92vw);
+  padding: 6px 6px 6px 12px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+.selection-quote {
+  flex: 1 1 240px; min-width: 0;
+  font-size: 12.5px; font-style: italic;
+  color: color-mix(in srgb, var(--color-text) 72%, transparent);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ── Toolbar ──────────────────────────────────────────────────────────── */
+
+.tool-row {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center;
+  max-width: 100%;
+}
+.tool-group {
+  display: flex; align-items: center; gap: 2px;
+  padding: 4px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-text);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.tool-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0;
+  height: 32px; min-width: 32px; padding: 0 8px;
+  font-family: var(--font-heading); font-weight: var(--font-heading-weight); font-size: 12.5px;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+  background: transparent; border: 0; border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color 0.14s ease, color 0.14s ease;
+}
+.tool-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--color-text) 8%, transparent); color: var(--color-text); }
+.tool-btn:disabled { opacity: 0.34; cursor: not-allowed; }
+.tool-btn.on { color: var(--color-accent); box-shadow: inset 0 0 0 1px var(--color-accent); }
+/* Width and margin animate together, which is what stops the bar snapping
+   between sizes when a tool is armed. */
+.tool-btn-label {
+  display: inline-grid; grid-template-columns: 0fr;
+  margin-left: 0; overflow: hidden; white-space: nowrap; opacity: 0;
+  transition: grid-template-columns 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+              margin-left 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 0.18s ease;
+}
+.tool-btn-label > span { min-width: 0; overflow: hidden; }
+.tool-btn-label.on { grid-template-columns: 1fr; margin-left: 7px; opacity: 1; }
+.tool-scale { min-width: 64px; gap: 5px; font-variant-numeric: tabular-nums; }
+/* While the bitmap is stretched rather than redrawn, the readout says so. */
+.tool-scale.is-stale { color: var(--color-accent); }
+
+/* The ink group collapses out of the bar instead of disappearing from it. */
+.tool-ink {
+  display: grid; grid-template-columns: 0fr;
+  padding: 4px 0; border-width: 0; overflow: hidden; opacity: 0;
+  transition: grid-template-columns 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+              padding 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 0.2s ease;
+}
+.tool-ink.on { grid-template-columns: 1fr; padding: 4px; border-width: 1px; opacity: 1; }
+.tool-ink-inner { display: flex; align-items: center; gap: 2px; min-width: 0; }
+
+.tool-divider { width: 1px; height: 18px; background: var(--color-divider); margin: 0 4px; }
+
+.ink-swatch {
+  width: 18px; height: 18px; margin: 0 2px; padding: 0;
+  border: 1px solid var(--color-divider); border-radius: 50%;
+  cursor: pointer;
+  transition: outline-color 0.14s ease, transform 0.14s ease;
+  outline: 2px solid transparent; outline-offset: 2px;
+}
+.ink-swatch:hover { transform: scale(1.12); }
+.ink-swatch.on { outline-color: var(--color-accent); border-color: var(--color-text); }
+
+.stroke-step {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 32px; padding: 0;
+  background: transparent; border: 0; border-radius: var(--radius-sm); cursor: pointer;
+}
+.stroke-step span { display: block; width: 15px; background: var(--color-text); border-radius: 2px; }
+.stroke-step:hover { background: color-mix(in srgb, var(--color-text) 8%, transparent); }
+.stroke-step.on { box-shadow: inset 0 0 0 1px var(--color-accent); }
+.stroke-step.on span { background: var(--color-accent); }
+
+/* ── Tooltips ─────────────────────────────────────────────────────────── */
+
+/*
+ * The tip is drawn into a portal on the body and positioned in viewport
+ * coordinates. Beside its button it inherited whatever clipped its group — the
+ * ink group clips itself so it can collapse — and every swatch tooltip was cut
+ * off at the group's edge. `--tip-shift` is what a tip near the window edge is
+ * nudged by; the arrow takes the same shift back so it keeps pointing at the
+ * button it belongs to.
+ */
+.tip-anchor { position: relative; display: inline-flex; }
+.tip {
+  position: fixed; z-index: 200;
+  --tip-shift: 0px;
+  display: flex; align-items: baseline; gap: 6px;
+  max-width: min(280px, calc(100vw - 16px));
+  padding: 4px 8px; white-space: nowrap;
+  font-family: var(--font-body); font-size: 11.5px; line-height: 1.2;
+  color: var(--color-bg); background: var(--color-text);
+  border-radius: var(--radius-sm);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.14s ease, transform 0.14s ease;
+}
+.tip-top { transform: translate(calc(-50% + var(--tip-shift)), calc(-100% + 4px)); }
+.tip-top.on { transform: translate(calc(-50% + var(--tip-shift)), -100%); }
+.tip-bottom { transform: translate(calc(-50% + var(--tip-shift)), -4px); }
+.tip-bottom.on { transform: translate(calc(-50% + var(--tip-shift)), 0); }
+.tip.on { opacity: 1; }
+.tip::after {
+  content: ''; position: absolute; left: 50%;
+  transform: translateX(calc(-50% - var(--tip-shift)));
+  border: 4px solid transparent;
+}
+.tip-top::after { top: 100%; border-top-color: var(--color-text); }
+.tip-bottom::after { bottom: 100%; border-bottom-color: var(--color-text); }
+.tip-hint { font: 10.5px var(--font-num); opacity: 0.62; }
+
+/* ── Exam timer ───────────────────────────────────────────────────────── */
+
+/*
+ * The frame, and the two shapes that live inside it.
+ *
+ * The shell carries the border and the shadow and nothing else; its width and
+ * height are written from the measured size of whichever shape is mounted, so
+ * the frame travels between the tall setup strip and the short running bar
+ * instead of swapping one for the other in a single frame. Ported from the
+ * Millennium reader's layout animation.
+ *
+ * `content-box` so the measured inner size is the width the shell is given, with
+ * the border sitting outside it.
+ */
+.exam-timer-shell {
+  position: relative;
+  box-sizing: content-box;
+  overflow: hidden;
+  background: var(--color-bg);
+  border: 1px solid var(--color-text);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  max-width: 100%;
+  transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+              height 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.exam-timer {
+  position: absolute; top: 0; left: 0;
+  display: flex; align-items: center; gap: 12px;
+  width: max-content; max-width: 100vw;
+  padding: 6px 8px;
+  animation: timer-shape-in 0.22s ease both;
+}
+.exam-timer.is-setup {
+  flex-direction: column; align-items: stretch; gap: 6px;
+  width: min(92vw, 44rem);
+  padding: 10px 12px 12px;
+}
+
+@keyframes timer-shape-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.exam-phase {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 8px; margin-left: 2px;
+  font-size: 11px; line-height: 1;
+  color: var(--color-accent);
+  background: var(--color-accent-100);
+  border-radius: var(--radius-sm);
+}
+
+.exam-clock {
+  font-family: var(--font-heading); font-weight: var(--font-heading-weight);
+  font-size: 20px; line-height: 1; padding: 0 4px;
+  font-variant-numeric: tabular-nums;
+}
+.exam-timer.is-setup .exam-clock { font-size: 30px; color: var(--color-accent); }
+.exam-timer.close .exam-clock { color: var(--color-accent-600); }
+.exam-timer.over .exam-clock { color: var(--status-danger); }
+
+/* ── Rolling digits ───────────────────────────────────────────────────── */
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  margin: -1px; padding: 0; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+
+/* One 0–9 column per digit, translated to the row that reads. Only the digits
+   that changed move, so a seconds tick rolls one column rather than the clock. */
+.roll { display: inline-flex; align-items: center; font-variant-numeric: tabular-nums; }
+.roll-row { display: inline-flex; align-items: center; }
+.roll-digit {
+  position: relative; display: inline-block;
+  width: 1ch; height: 1em; overflow: hidden;
+  vertical-align: baseline;
+}
+.roll-column {
+  position: absolute; top: 0; left: 0; right: 0;
+  display: flex; flex-direction: column; align-items: center;
+  /* A touch of overshoot, standing in for Millennium's spring. */
+  transition: transform 0.42s cubic-bezier(0.34, 1.32, 0.44, 1);
+}
+.roll-column > span {
+  display: flex; align-items: center; justify-content: center;
+  height: 1em; line-height: 1;
+}
+.roll-column.is-still { transition: none; }
+.roll-separator { padding: 0 0.02em; }
+
+.exam-progress {
+  position: relative; flex: none;
+  width: clamp(96px, 22vw, 200px); height: 3px;
+  background: var(--color-neutral-300);
+  overflow: hidden;
+}
+.exam-progress i {
+  display: block; height: 100%;
+  background: var(--color-accent);
+  transition: width 0.25s linear;
+}
+.exam-percent { min-width: 4ch; text-align: right; font-size: 11.5px; }
+
+.exam-timer-setup-foot {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+}
+.exam-timer-setup-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.exam-timer-setup-readout { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; margin-left: auto; }
+
+/* The minute dial — a rule of ticks dragged under a fixed centre pointer. */
+.dial {
+  position: relative; height: 54px;
+  cursor: ew-resize; touch-action: none; user-select: none; overflow: hidden;
+  /* The rule fades at both ends, so it reads as continuing past the frame. */
+  mask-image: linear-gradient(to right, transparent, #000 14%, #000 86%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 14%, #000 86%, transparent);
+}
+.dial:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; }
+.dial-strip { position: absolute; top: 0; bottom: 0; left: 50%; }
+.dial-tick {
+  position: absolute; bottom: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  transform: translateX(-50%);
+}
+.dial-tick-label { font-size: 10px; line-height: 1; color: color-mix(in srgb, var(--color-text) 55%, transparent); }
+.dial-tick-mark { width: 1px; height: 12px; background: var(--color-text); opacity: 0.3; }
+.dial-tick.labelled .dial-tick-mark { height: 22px; opacity: 0.55; }
+
+.dial-pointer {
+  position: absolute; top: 0; bottom: 0; left: 50%;
+  width: 12px; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center;
+  pointer-events: none;
+}
+.dial-pointer::before {
+  content: ''; width: 0; height: 0;
+  border-left: 6px solid transparent; border-right: 6px solid transparent;
+  border-top: 7px solid var(--color-accent);
+}
+.dial-pointer::after {
+  content: ''; width: 2px; flex: 1;
+  background: color-mix(in srgb, var(--color-accent) 70%, transparent);
+}
+
+/* ── The margin ───────────────────────────────────────────────────────── */
+
+.margin-drawer {
+  transition: transform 0.26s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.26s ease;
+}
+.margin-drawer.is-entering { transform: translateX(100%); opacity: 0; }
+.margin-drawer.is-entered { transform: none; opacity: 1; }
+.margin-drawer.is-exiting { transform: translateX(100%); opacity: 0; }
+
+
+.margin-prompt {
+  font-size: 13px; text-align: left; padding: 2px 0;
+  justify-content: flex-start; white-space: normal;
+}
+.margin-drawer .agent-markdown p { text-align: justify; margin: 0 0 10px; font-size: 13.5px; }
+.margin-drawer .agent-markdown ul { margin: 0 0 10px; padding-left: 18px; font-size: 13.5px; }
+.margin-drawer .agent-markdown li { margin-bottom: 4px; }
+.margin-drawer .agent-markdown strong { font-weight: 600; }
+.margin-drawer .agent-markdown code {
+  font: 12px var(--font-num);
+  background: color-mix(in srgb, var(--color-text) 7%, transparent);
+  padding: 1px 4px;
+}
+
+/* ── Reduced motion ───────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .roll-column,
+  .exam-timer-shell,
+  .exam-progress i,
+  .tool-btn-label,
+  .tool-ink { transition: none; }
+  .exam-timer { animation: none; }
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .reader-head { flex-wrap: wrap; gap: 10px; }
+  .reader-actions { width: 100%; justify-content: flex-start; }
+  .reader-panes.is-split .reader-pane { display: none; }
+  .reader-panes.is-split .reader-pane.is-active { display: block; }
+  .reader-panes.is-split ~ .reader-tabs,
+  .reader-tabs { display: flex; }
+  .exam-timer.is-setup { width: calc(100vw - 24px); }
+  .reader-bars { bottom: 12px; }
+}

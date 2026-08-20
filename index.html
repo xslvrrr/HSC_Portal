@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="manifest" href="/manifest.json?v=1.1" />
+    <meta name="theme-color" content="#355b4f" />
+    
+    <!-- iOS PWA Support -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="HSC Portal" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
+    
+    <!-- SEO Optimization -->
+    <title>NSW HSC Past Papers & Trial Exams Hub | Prep Center</title>
+    <meta name="description" content="Access and search over 7,306 official NESA NSW HSC past papers, school trials, and internal assessments. Free practice space with stopwatch countdown timers and direct worked solutions." />
+    <meta name="keywords" content="HSC past papers, NSW HSC trials, THSC online, NESA papers, HSC chemistry trials, HSC maths past papers, school trial papers" />
+    <meta name="author" content="HSC Prep Hub" />
+    
+    <!-- Open Graph for social previews -->
+    <meta property="og:title" content="NSW HSC Past Papers & Trial Exams Hub | Prep Center" />
+    <meta property="og:description" content="Access and search over 7,306 official NESA NSW HSC past papers, school trials, and internal assessments. Free practice space with stopwatch countdown timers and direct worked solutions." />
+    <meta property="og:type" content="website" />
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('hsc_theme');
+          var theme = saved === 'dark' || saved === 'light'
+            ? saved
+            : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+          document.documentElement.setAttribute('data-theme', theme);
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'light');
+        }
+      })();
+    </script>
+    
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

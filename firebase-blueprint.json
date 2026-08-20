@@ -1,0 +1,22 @@
+{
+  "rulesVersion": "2",
+  "collections": [
+    {
+      "name": "users",
+      "path": "users/{userId}",
+      "description": "Stores user-specific data like bookmarks, assessments, and appearance settings.",
+      "readAccess": "request.auth != null && request.auth.uid == userId",
+      "writeAccess": "request.auth != null && request.auth.uid == userId",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "bookmarks": { "type": "array", "items": { "type": "string" } },
+          "appearance": { "type": "object" },
+          "assessments": { "type": "array" },
+          "updatedAt": { "type": "timestamp" }
+        },
+        "required": ["updatedAt"]
+      }
+    }
+  ]
+}
