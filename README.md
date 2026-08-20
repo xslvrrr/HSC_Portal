@@ -18,11 +18,11 @@ A modern all-in-one portal designed to help NSW HSC students manage study resour
 
 ## Tech Stack
 
-Depending on the current implementation, this project may include:
+This project includes:
 
 - Frontend: HTML, CSS, JavaScript
 - Backend: Vite.js 
-- Database: SQL
+- Database: Firebase
 - Hosting: Vercel
 
 ---
@@ -132,9 +132,11 @@ This project is licensed under the MIT License.
 ## Author
 
 Created by [spidey1102](https://github.com/spidey1102)
+Contributions and partial rewrite from [xslvrrr](https://github.com/xslvrrr)
 
 ---
 
-## Repository
+## Repositories
 
-https://github.com/spidey1102/HSC_Portal
+https://github.com/spidey1102/HSC_Portal (original)
+https://github.com/xslvrrr/HSC_Portal (contribution fork)
