@@ -132,6 +132,7 @@ This project is licensed under the MIT License.
 ## Author
 
 Created by [spidey1102](https://github.com/spidey1102)
+
 Contributions and partial rewrite from [xslvrrr](https://github.com/xslvrrr)
 
 ---
@@ -139,4 +140,5 @@ Contributions and partial rewrite from [xslvrrr](https://github.com/xslvrrr)
 ## Repositories
 
 https://github.com/spidey1102/HSC_Portal (original)
+
 https://github.com/xslvrrr/HSC_Portal (contribution fork)
